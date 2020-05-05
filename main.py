@@ -1,7 +1,6 @@
 import curses
 import numpy as np
 from random import randint, choice
-import time
 
 
 class LeftDirection:
