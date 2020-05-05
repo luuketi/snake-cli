@@ -86,7 +86,7 @@ class Board:
     SNAKE_BODY_CHAR = u"\u006F"
     EMPTY_CHAR = u"\u0020"
     SNAKE_CHARS = {LeftDirection: 'L', RightDirection: 'R', UpDirection: 'U', DownDirection: 'D'}
-    FOOD_CHARS = (u"\U0001F36B", u"\U0001F35F", u"\U0001F373", u"\U0001F37A", u"\U0001F368", u"\U0001F351",
+    FOOD_CHARS = (u"\U0001F36B", u"\U0001F35F", u"\U0001F37A", u"\U0001F368", u"\U0001F351",
                   u"\U0001F355", u"\U0001F951")
 
     def __init__(self, rows, columns):
@@ -180,7 +180,7 @@ class Board:
             self._tail_r += 1
 
     def _put_food(self):
-        r, c = randint(1, self._rows-2), randint(1, self._columns-2)
+        r, c = randint(1, self._rows-2), randint(1, self._columns-4)
         if self._board[r][c] not in self.SNAKE_CHARS.values():
             self._board[r][c] = choice(self.FOOD_CHARS)
         else:
@@ -224,6 +224,7 @@ def start(stdscr):
 
     stdscr = curses.initscr()
     stdscr.clear()
+    curses.halfdelay(10)
     stdscr.keypad(True)
 
     MOVE_KEYS = {curses.KEY_LEFT: b.move_left,
