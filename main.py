@@ -1,7 +1,6 @@
 import curses
-import emoji
 import numpy as np
-from random import randint
+from random import randint, choice
 import time
 
 
@@ -82,34 +81,43 @@ class DownDirection:
 
 
 class Board:
-    SNAKE_HEAD_CHAR = '@'
-    SNAKE_BODY_CHAR = 'o'
+
+    SNAKE_HEAD_CHAR = u"\u0040"
+    SNAKE_BODY_CHAR = u"\u006F"
+    EMPTY_CHAR = u"\u0020"
     SNAKE_CHARS = {LeftDirection: 'L', RightDirection: 'R', UpDirection: 'U', DownDirection: 'D'}
-    FOOD_CHAR = 'X'
-    #FOOD_CHARS = ['\u1F951', 'U+1F346']
+    FOOD_CHARS = (u"\U0001F36B", u"\U0001F35F", u"\U0001F373", u"\U0001F37A", u"\U0001F368", u"\U0001F351",
+                  u"\U0001F355", u"\U0001F951")
 
     def __init__(self, rows, columns):
         self._rows = rows
         self._columns = columns
-        self._board = np.full((rows, columns), ' ')
-        start = randint(0, rows-1)
+        self._board = np.full((rows, columns), self.EMPTY_CHAR)
         self._direction = RightDirection
-        self._length = 1
+        start = randint(1, rows - 2)
         self._head_r = start
-        self._head_c = 0
+        self._head_c = 1
         self._tail_r = start
-        self._tail_c = 0
-        self._time = 0
+        self._tail_c = 1
+        self._game_over = False
 
         self.MOVEMENTS = {
-            LeftDirection.__name__: (self._do_left_head, ),
-            RightDirection.__name__: (self._do_right_head, ),
-            UpDirection.__name__: (self._do_up_head, ),
-            DownDirection.__name__: (self._do_down_head, ),
+            LeftDirection.__name__: self._do_left_head,
+            RightDirection.__name__: self._do_right_head,
+            UpDirection.__name__: self._do_up_head,
+            DownDirection.__name__: self._do_down_head,
         }
-
-        self.play()
         self._put_food()
+
+    def _fill_borders(self, board):
+        board[0] = '━'
+        board[-1] = '━'
+        board.T[0] = '┃'
+        board.T[-1] = '┃'
+        board[0][0] = '┏'
+        board[self._rows-1][0] = '┗'
+        board[0][self._columns-1] = '┓'
+        board[-1][-1] = '┛'
 
     def move_left(self):
         self._direction = self._direction.move_left()
@@ -129,16 +137,14 @@ class Board:
         for c in chars_to_replace:
             board[board == c] = self.SNAKE_BODY_CHAR
         board[self._head_r][self._head_c] = self.SNAKE_HEAD_CHAR
+        self._fill_borders(board)
         return board
 
     def _check_conflicts(self):
-        if self._head_r < 0 or self._head_r >= self._rows or self._head_c < 0 or self._head_c >= self._columns:
-            raise Exception('Out of boundaries')
+        if self._head_r <= 0 or self._head_r >= self._rows-1 or self._head_c <= 0 or self._head_c >= self._columns-1:
+            raise RuntimeError('Out of boundaries')
         if self._board[self._head_r][self._head_c] in self.SNAKE_CHARS.values():
-            raise Exception('Ate your tail')
-
-    def _eat(self):
-        self._length += 1
+            raise RuntimeError('Ate your tail')
 
     def _do_left_head(self):
         self._head_c -= 1
@@ -153,17 +159,17 @@ class Board:
         self._head_r += 1
 
     def _do_movement_head(self):
-        self.MOVEMENTS[self._direction.__name__][0]()
+        self.MOVEMENTS[self._direction.__name__]()
 
     def _found_food(self):
-        return self._board[self._head_r][self._head_c] == self.FOOD_CHAR
+        return self._board[self._head_r][self._head_c] in self.FOOD_CHARS
 
     def _update_head(self):
         self._board[self._head_r][self._head_c] = self.SNAKE_CHARS[self._direction]
 
     def _update_tail(self):
         move_to = self._board[self._tail_r][self._tail_c]
-        self._board[self._tail_r][self._tail_c] = ' '
+        self._board[self._tail_r][self._tail_c] = self.EMPTY_CHAR
         if move_to == 'L':
             self._tail_c -= 1
         elif move_to == 'R':
@@ -174,23 +180,32 @@ class Board:
             self._tail_r += 1
 
     def _put_food(self):
-        r, c = randint(0, self._rows-1), randint(0, self._columns-1)
+        r, c = randint(1, self._rows-2), randint(1, self._columns-2)
         if self._board[r][c] not in self.SNAKE_CHARS.values():
-            self._board[r][c] = self.FOOD_CHAR
+            self._board[r][c] = choice(self.FOOD_CHARS)
         else:
             self._put_food()
 
+    def _end_game(self):
+        self._game_over = True
+
     def play(self):
-        self._time += 1
+        if self._game_over:
+            return
 
         self._update_head()
         self._do_movement_head()
-        self._check_conflicts()
+
+        try:
+            self._check_conflicts()
+        except RuntimeError as e:
+            self._end_game()
+            return
+
         found_food = self._found_food()
         self._update_head()
 
         if found_food:
-            self._length += 1
             self._put_food()
         else:
             self._update_tail()
@@ -205,24 +220,22 @@ def start(stdscr):
                 stdscr.addstr(j, i, c)
 
     k = 0
-    b = Board(20, 20)
+    b = Board(20, 40)
 
     stdscr = curses.initscr()
     stdscr.clear()
     stdscr.keypad(True)
 
-    while (k != ord('q')):
+    MOVE_KEYS = {curses.KEY_LEFT: b.move_left,
+                 curses.KEY_RIGHT: b.move_right,
+                 curses.KEY_UP: b.move_up,
+                 curses.KEY_DOWN: b.move_down}
+
+    while k != ord('q'):
         paint(b)
         k = stdscr.getch()
-        if k == ord('a'):
-            b.move_left()
-        if k == ord('d'):
-            b.move_right()
-        if k == ord('w'):
-            b.move_up()
-        if k == ord('s'):
-            b.move_down()
-
+        if k in MOVE_KEYS:
+            MOVE_KEYS.get(k)()
         b.play()
 
 
