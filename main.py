@@ -101,13 +101,21 @@ class Board:
         self._tail_c = 1
         self._game_over = False
 
+        self._put_food()
+
+        self.CHAR_TO_MOVEMENT = {
+            'L': self._do_left_tail,
+            'R': self._do_right_tail,
+            'U': self._do_up_tail,
+            'D': self._do_down_tail,
+        }
+
         self.MOVEMENTS = {
             LeftDirection.__name__: self._do_left_head,
             RightDirection.__name__: self._do_right_head,
             UpDirection.__name__: self._do_up_head,
             DownDirection.__name__: self._do_down_head,
         }
-        self._put_food()
 
     def _fill_borders(self, board):
         board[0] = '━'
@@ -158,6 +166,18 @@ class Board:
     def _do_down_head(self):
         self._head_r += 1
 
+    def _do_left_tail(self):
+        self._tail_c -= 1
+
+    def _do_right_tail(self):
+        self._tail_c += 1
+
+    def _do_up_tail(self):
+        self._tail_r -= 1
+
+    def _do_down_tail(self):
+        self._tail_r += 1
+
     def _do_movement_head(self):
         self.MOVEMENTS[self._direction.__name__]()
 
@@ -170,14 +190,7 @@ class Board:
     def _update_tail(self):
         move_to = self._board[self._tail_r][self._tail_c]
         self._board[self._tail_r][self._tail_c] = self.EMPTY_CHAR
-        if move_to == 'L':
-            self._tail_c -= 1
-        elif move_to == 'R':
-            self._tail_c += 1
-        elif move_to == 'U':
-            self._tail_r -= 1
-        elif move_to == 'D':
-            self._tail_r += 1
+        self.CHAR_TO_MOVEMENT[move_to]()
 
     def _put_food(self):
         r, c = randint(1, self._rows-2), randint(1, self._columns-4)
