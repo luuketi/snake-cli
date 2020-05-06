@@ -1,3 +1,4 @@
 # snake-cli
-snake game for terminal
-![](demo.gif)
+Snake game for terminal
+
+[demo image](demo.gif)
