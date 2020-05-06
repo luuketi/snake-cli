@@ -84,6 +84,7 @@ class Board:
     SNAKE_HEAD_CHAR = u"\u0040"
     SNAKE_BODY_CHAR = u"\u006F"
     EMPTY_CHAR = u"\u0020"
+    SNAKE_DEAD_CHAR = 'X'
     SNAKE_CHARS = {LeftDirection: 'L', RightDirection: 'R', UpDirection: 'U', DownDirection: 'D'}
     FOOD_CHARS = (u"\U0001F36B", u"\U0001F35F", u"\U0001F37A", u"\U0001F368", u"\U0001F351",
                   u"\U0001F355", u"\U0001F951")
@@ -91,16 +92,9 @@ class Board:
     def __init__(self, rows, columns):
         self._rows = rows
         self._columns = columns
-        self._board = np.full((rows, columns), self.EMPTY_CHAR)
-        self._direction = RightDirection
-        start = randint(1, rows - 2)
-        self._head_r = start
-        self._head_c = 1
-        self._tail_r = start
-        self._tail_c = 1
         self._game_over = False
-
-        self._put_food()
+        self._chars_to_replace = list(self.SNAKE_CHARS.values())
+        self._setup_board()
 
         self.CHAR_TO_MOVEMENT = {
             'L': self._do_left_tail,
@@ -115,6 +109,16 @@ class Board:
             UpDirection.__name__: self._do_up_head,
             DownDirection.__name__: self._do_down_head,
         }
+
+    def _setup_board(self):
+        self._board = np.full((self._rows, self._columns), self.EMPTY_CHAR)
+        self._direction = RightDirection
+        start = randint(1, self._rows - 2)
+        self._head_r = start
+        self._head_c = 1
+        self._tail_r = start
+        self._tail_c = 1
+        self._put_food()
 
     def _fill_borders(self, board):
         board[0] = '━'
@@ -140,11 +144,10 @@ class Board:
 
     def get_board(self):
         board = self._board.copy()
-        chars_to_replace = list(self.SNAKE_CHARS.values())
-        for c in chars_to_replace:
+        for c in self._chars_to_replace:
             board[board == c] = self.SNAKE_BODY_CHAR
-        board[self._head_r][self._head_c] = self.SNAKE_HEAD_CHAR
         self._fill_borders(board)
+        board[self._head_r][self._head_c] = self.SNAKE_HEAD_CHAR if not self._game_over else self.SNAKE_DEAD_CHAR
         return board
 
     def _check_conflicts(self):
@@ -189,10 +192,10 @@ class Board:
     def _update_tail(self):
         move_to = self._board[self._tail_r][self._tail_c]
         self._board[self._tail_r][self._tail_c] = self.EMPTY_CHAR
-        self.CHAR_TO_MOVEMENT[move_to]()
+        self.CHAR_TO_MOVEMENT.get(move_to)()
 
     def _put_food(self):
-        r, c = randint(1, self._rows-2), randint(1, self._columns-4)
+        r, c = randint(1, self._rows-2), randint(1, self._columns-7)
         if self._board[r][c] not in self.SNAKE_CHARS.values():
             self._board[r][c] = choice(self.FOOD_CHARS)
         else:
@@ -200,6 +203,8 @@ class Board:
 
     def _end_game(self):
         self._game_over = True
+        self._update_tail()
+        self._board[self._head_r][self._head_c] = 'X'
 
     def play(self):
         if self._game_over:
@@ -223,7 +228,7 @@ class Board:
             self._update_tail()
 
 
-def start(stdscr):
+def run(stdscr):
 
     def paint(b):
         board = b.get_board()
@@ -234,9 +239,10 @@ def start(stdscr):
     k = 0
     b = Board(20, 40)
 
+    curses.start_color()
     stdscr = curses.initscr()
     stdscr.clear()
-    curses.halfdelay(10)
+    curses.halfdelay(2)
     stdscr.keypad(True)
 
     MOVE_KEYS = {curses.KEY_LEFT: b.move_left,
@@ -253,7 +259,7 @@ def start(stdscr):
 
 
 def main():
-    curses.wrapper(start)
+    curses.wrapper(run)
 
 
 if __name__ == "__main__":
